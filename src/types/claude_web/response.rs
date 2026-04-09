@@ -125,7 +125,7 @@ impl ClaudeWebState {
                         ).await.map(|v| v as u64);
                     }
                     let out = out.unwrap_or_else(|| {
-                        let usage = crate::types::claude::Usage { input_tokens: input_tokens as u32, output_tokens: 0 };
+                        let usage = crate::types::claude::Usage { input_tokens: input_tokens as u32, output_tokens: 0, ..Default::default() };
                         let resp = crate::types::claude::CreateMessageResponse::text(acc.clone(), Default::default(), usage);
                         resp.count_tokens() as u64
                     });

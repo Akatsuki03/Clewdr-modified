@@ -66,6 +66,8 @@ struct StreamState {
     model: String,
     input_tokens: u32,
     output_tokens: u32,
+    cache_creation_tokens: u32,
+    cache_read_tokens: u32,
     finish_reason: String,
 }
 
@@ -91,7 +93,22 @@ impl StreamState {
 
     /// Build the final SSE chunk that carries `finish_reason` + `usage`,
     /// matching the OpenAI streaming format expected by aggregators such as CLIProxyAPI.
+    /// Includes cache token counts so downstream stats tools show correct numbers.
     fn final_chunk(&self) -> Event {
+        let mut usage = serde_json::json!({
+            "prompt_tokens": self.input_tokens,
+            "completion_tokens": self.output_tokens,
+            "total_tokens": self.input_tokens + self.output_tokens,
+            // Anthropic-style fields (read by CLIProxyAPI and similar tools)
+            "cache_creation_input_tokens": self.cache_creation_tokens,
+            "cache_read_input_tokens": self.cache_read_tokens,
+        });
+        // OpenAI-style nested field for clients that prefer it
+        if self.cache_read_tokens > 0 {
+            usage["prompt_tokens_details"] = serde_json::json!({
+                "cached_tokens": self.cache_read_tokens
+            });
+        }
         let chunk = serde_json::json!({
             "id": self.id,
             "object": "chat.completion.chunk",
@@ -101,11 +118,7 @@ impl StreamState {
                 .as_secs(),
             "model": self.model,
             "choices": [{"index": 0, "delta": {}, "finish_reason": self.finish_reason}],
-            "usage": {
-                "prompt_tokens": self.input_tokens,
-                "completion_tokens": self.output_tokens,
-                "total_tokens": self.input_tokens + self.output_tokens
-            }
+            "usage": usage
         });
         Event::default().json_data(chunk).unwrap()
     }
@@ -140,13 +153,16 @@ where
             };
 
             match parsed {
-                // Capture id, model, and input token count from the opening event
+                // Capture id, model, input token count, and cache stats from the opening event
                 StreamEvent::MessageStart { message } => {
                     let mut st = state.lock().unwrap();
                     st.id = message.id;
                     st.model = message.model;
                     if let Some(usage) = message.usage {
                         st.input_tokens = usage.input_tokens;
+                        st.cache_creation_tokens =
+                            usage.cache_creation_input_tokens.unwrap_or(0);
+                        st.cache_read_tokens = usage.cache_read_input_tokens.unwrap_or(0);
                     }
                     Ok(None)
                 }
@@ -199,11 +215,21 @@ pub fn transforms_json(input: CreateMessageResponse) -> Value {
         .collect::<String>();
 
     let usage = input.usage.as_ref().map(|u| {
-        serde_json::json!({
+        let cache_creation = u.cache_creation_input_tokens.unwrap_or(0);
+        let cache_read = u.cache_read_input_tokens.unwrap_or(0);
+        let mut obj = serde_json::json!({
             "prompt_tokens": u.input_tokens,
             "completion_tokens": u.output_tokens,
-            "total_tokens": u.input_tokens + u.output_tokens
-        })
+            "total_tokens": u.input_tokens + u.output_tokens,
+            "cache_creation_input_tokens": cache_creation,
+            "cache_read_input_tokens": cache_read,
+        });
+        if cache_read > 0 {
+            obj["prompt_tokens_details"] = serde_json::json!({
+                "cached_tokens": cache_read
+            });
+        }
+        obj
     });
 
     let finish_reason = match input.stop_reason {

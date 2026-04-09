@@ -219,6 +219,68 @@ fn normalize_tools(tools: Vec<Tool>) -> Vec<Tool> {
         .collect()
 }
 
+/// Convert an OAI `image_url` content block into a Claude-native `image` block.
+///
+/// OpenAI sends images as:
+/// ```json
+/// {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,..." }}
+/// {"type": "image_url", "image_url": {"url": "https://example.com/photo.jpg"}}
+/// ```
+///
+/// Claude only understands:
+/// ```json
+/// {"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "..."}}
+/// {"type": "image", "source": {"type": "url",    "url": "https://example.com/photo.jpg"}}
+/// ```
+///
+/// This function normalizes all messages so Claude Code API never sees `image_url` blocks.
+fn normalize_image_blocks(messages: Vec<Message>) -> Vec<Message> {
+    use crate::types::claude::ImageSource;
+    messages
+        .into_iter()
+        .map(|mut msg| {
+            if let MessageContent::Blocks { ref mut content } = msg.content {
+                let converted: Vec<ContentBlock> = content
+                    .drain(..)
+                    .map(|block| {
+                        let ContentBlock::ImageUrl { image_url } = block else {
+                            return block;
+                        };
+                        let url = image_url.url;
+                        let source = if url.starts_with("data:") {
+                            // data URI → base64 source
+                            url.split_once(',')
+                                .and_then(|(meta, data)| {
+                                    let media_type = meta
+                                        .strip_prefix("data:")?
+                                        .split(';')
+                                        .next()?
+                                        .to_string();
+                                    Some(ImageSource::Base64 {
+                                        media_type,
+                                        data: data.to_string(),
+                                    })
+                                })
+                                .unwrap_or_else(|| ImageSource::Url {
+                                    url: url.clone(),
+                                })
+                        } else {
+                            // Regular HTTP/HTTPS URL
+                            ImageSource::Url { url }
+                        };
+                        ContentBlock::Image {
+                            source,
+                            cache_control: None,
+                        }
+                    })
+                    .collect();
+                *content = converted;
+            }
+            msg
+        })
+        .collect()
+}
+
 fn drop_empty_system(body: &mut CreateMessageParams) {
     let Some(system) = body.system.take() else {
         return;
@@ -352,6 +414,8 @@ where
             }
             ClaudeApiFormat::Claude => Json::<CreateMessageParams>::from_request(req, &()).await?,
         };
+        // Normalize image blocks: convert OAI `image_url` blocks to Claude-native `image` blocks.
+        body.messages = normalize_image_blocks(body.messages);
         if CLEWDR_CONFIG.load().sanitize_messages {
             // Trim whitespace and drop empty assistant turns when enabled.
             body.messages = sanitize_messages(body.messages);

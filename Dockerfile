@@ -79,11 +79,12 @@ ENV CLEWDR_IP=0.0.0.0
 ENV CLEWDR_PORT=8484
 ENV CLEWDR_CHECK_UPDATE=FALSE
 ENV CLEWDR_AUTO_UPDATE=FALSE
-# Set these to fixed values in Zeabur/docker dashboard.
-# If left empty, a random password is generated on first start and saved to
-# /etc/clewdr/clewdr.toml (persisted across restarts via the volume).
-ENV CLEWDR_PASSWORD=
-ENV CLEWDR_ADMIN_PASSWORD=
+# NOTE: Do NOT set CLEWDR_PASSWORD or CLEWDR_ADMIN_PASSWORD here.
+# Baking in empty strings would cause figment to override the persisted TOML
+# password with "", triggering random password regeneration on every restart.
+# Instead, set these ONLY in the Zeabur dashboard (or via docker -e) when you
+# want a fixed password. If unset, the password from /etc/clewdr/clewdr.toml
+# (generated on first start) persists across restarts via the volume.
 
 # Zeabur (and many platforms) inject $PORT at runtime.
 # docker-entrypoint.sh maps PORT → CLEWDR_PORT automatically.

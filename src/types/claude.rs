@@ -821,6 +821,12 @@ pub struct Usage {
     pub input_tokens: u32,
     /// Output tokens used
     pub output_tokens: u32,
+    /// Tokens written into the prompt cache (charged at 1.25×)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_creation_input_tokens: Option<u32>,
+    /// Tokens read from the prompt cache (charged at 0.1×)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_input_tokens: Option<u32>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -830,6 +836,12 @@ pub struct StreamUsage {
     pub input_tokens: u32,
     /// Output tokens used
     pub output_tokens: u32,
+    /// Tokens written into the prompt cache this turn
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_creation_input_tokens: Option<u32>,
+    /// Tokens read from the prompt cache this turn
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cache_read_input_tokens: Option<u32>,
 }
 
 impl Message {

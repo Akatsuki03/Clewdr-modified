@@ -74,11 +74,16 @@ COPY docker-entrypoint.sh                        /usr/local/bin/docker-entrypoin
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh \
     && chown -R clewdr:clewdr /etc/clewdr
 
-# Default env — all overridable at runtime
+# Default env — all overridable at runtime via Zeabur dashboard or docker -e
 ENV CLEWDR_IP=0.0.0.0
 ENV CLEWDR_PORT=8484
 ENV CLEWDR_CHECK_UPDATE=FALSE
 ENV CLEWDR_AUTO_UPDATE=FALSE
+# Set these to fixed values in Zeabur/docker dashboard.
+# If left empty, a random password is generated on first start and saved to
+# /etc/clewdr/clewdr.toml (persisted across restarts via the volume).
+ENV CLEWDR_PASSWORD=
+ENV CLEWDR_ADMIN_PASSWORD=
 
 # Zeabur (and many platforms) inject $PORT at runtime.
 # docker-entrypoint.sh maps PORT → CLEWDR_PORT automatically.

@@ -1,0 +1,32 @@
+# Zeabur service configuration for Clewdr-modified
+# https://zeabur.com/docs/deploy/config-edit
+
+[service]
+name = "clewdr-modified"
+
+# Environment variables exposed in the Zeabur dashboard.
+# Users can set these before/after deploying via the "Variables" tab.
+[[service.variables]]
+key = "CLEWDR_PASSWORD"
+description = "API access password for /v1 and /code/v1 endpoints. Leave empty to auto-generate a random password on first start (saved to the persistent volume)."
+default = ""
+
+[[service.variables]]
+key = "CLEWDR_ADMIN_PASSWORD"
+description = "Web admin panel password for managing cookies and settings. Leave empty to auto-generate."
+default = ""
+
+[[service.variables]]
+key = "CLEWDR_PORT"
+description = "Port the server listens on. Zeabur injects PORT automatically; you usually do not need to change this."
+default = "8484"
+
+[[service.variables]]
+key = "CLEWDR_CHECK_UPDATE"
+description = "Check for upstream updates on startup (TRUE/FALSE)."
+default = "FALSE"
+
+[[service.variables]]
+key = "CLEWDR_AUTO_UPDATE"
+description = "Auto-apply upstream updates (TRUE/FALSE). Keep FALSE in containers."
+default = "FALSE"

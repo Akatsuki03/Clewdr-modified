@@ -398,7 +398,8 @@ where
             usage: Usage {
                 input_tokens,
                 output_tokens: 0, // Placeholder for output token count
-                ..Default::default()
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
             },
         };
 
@@ -492,7 +493,8 @@ where
             usage: Usage {
                 input_tokens,
                 output_tokens: 0, // Placeholder for output token count
-                ..Default::default()
+                cache_creation_input_tokens: None,
+                cache_read_input_tokens: None,
             },
         };
 

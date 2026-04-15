@@ -149,6 +149,10 @@ where
         let state = Arc::clone(&state);
         async move {
             let Ok(parsed) = serde_json::from_str::<StreamEvent>(&data) else {
+                tracing::debug!(
+                    "Dropped unparseable stream event: {}",
+                    &data[..data.len().min(200)]
+                );
                 return Ok(None);
             };
 

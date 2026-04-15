@@ -156,7 +156,8 @@ impl RouterBuilder {
                 ServiceBuilder::new()
                     .layer(from_extractor::<RequireBearerAuth>())
                     .layer(CompressionLayer::new())
-                    .layer(map_response(to_oai)),
+                    .layer(map_response(to_oai))
+                    .layer(map_response(check_overloaded)),
             )
             .with_state(self.claude_providers.code());
         self.inner = self.inner.merge(router);

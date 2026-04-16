@@ -635,8 +635,8 @@ impl ClaudeCodeState {
     }
 
     fn is_opus_1m_probe_model(model: &str) -> bool {
-        // Only Opus 4.6 lane should trigger 1M probing.
-        model.starts_with("claude-opus-4-6")
+        // Opus 4.6 and 4.7 lanes should trigger 1M probing.
+        model.starts_with("claude-opus-4-6") || model.starts_with("claude-opus-4-7")
     }
 
     fn classify_model(model: &str) -> ModelFamily {

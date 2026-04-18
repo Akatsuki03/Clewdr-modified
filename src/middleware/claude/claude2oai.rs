@@ -218,6 +218,18 @@ pub fn transforms_json(input: CreateMessageResponse) -> Value {
         })
         .collect::<String>();
 
+    // Aggregate any thinking blocks so non-streaming OpenAI clients that
+    // understand `reasoning_content` (DeepSeek-R1 / OpenRouter style) can
+    // surface the chain of thought instead of silently dropping it.
+    let reasoning = input
+        .content
+        .iter()
+        .filter_map(|block| match block {
+            crate::types::claude::ContentBlock::Thinking { thinking, .. } => Some(thinking.clone()),
+            _ => None,
+        })
+        .collect::<String>();
+
     let usage = input.usage.as_ref().map(|u| {
         let cache_creation = u.cache_creation_input_tokens.unwrap_or(0);
         let cache_read = u.cache_read_input_tokens.unwrap_or(0);
@@ -247,6 +259,14 @@ pub fn transforms_json(input: CreateMessageResponse) -> Value {
         None => "stop",
     };
 
+    let mut message = serde_json::json!({
+        "role": "assistant",
+        "content": content,
+    });
+    if !reasoning.is_empty() {
+        message["reasoning_content"] = serde_json::Value::String(reasoning);
+    }
+
     serde_json::json!({
         "id": input.id,
         "object": "chat.completion",
@@ -257,10 +277,7 @@ pub fn transforms_json(input: CreateMessageResponse) -> Value {
         "model": input.model,
         "choices": [{
             "index": 0,
-            "message": {
-                "role": "assistant",
-                "content": content
-            },
+            "message": message,
             "finish_reason": finish_reason
         }],
         "usage": usage
